@@ -26,12 +26,16 @@ def build_queries(config):
     queries = []
     municipalities = config.get("municipality_ids", [])
     for lane in config["lanes"]:
+        # A lane may override occupation_field; null/"" searches all fields
+        # (analyst roles are often filed outside the IT field).
+        field = lane.get("occupation_field", config.get("occupation_field"))
         for keyword in lane["keywords"]:
             params = {
-                "occupation-field": config["occupation_field"],
                 "limit": config.get("limit", 100),
                 "q": keyword,
             }
+            if field:
+                params["occupation-field"] = field
             if municipalities:
                 params["municipality"] = municipalities
             queries.append(params)

@@ -90,6 +90,7 @@ Check if `PLUGIN_ROOT/profile.md` exists. If not, enter setup:
    }
    ```
    `occupation_field` is fixed to IT sector ID `apaJ_2ja_LuF` (JobTech taxonomy).
+   A lane may set its own `"occupation_field"`; `null` searches all fields (useful for business/data/systems analyst roles, which JobTech often files outside IT).
    `location_filter` (optional) keeps only jobs whose workplace municipality name is in the list (jobs without a municipality are kept). Prefer it over `municipality_ids`, which need taxonomy concept IDs.
    Each lane corresponds to one of the user's career directions; keywords are used for JobTech API searches.
 
