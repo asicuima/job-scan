@@ -9,7 +9,7 @@ import json
 import sys
 
 # Statuses set by the user — machine must never downgrade these
-USER_STATUSES = {"reviewed", "shortlisted", "applied", "ignored"}
+USER_STATUSES = {"reviewed", "shortlisted", "applied", "ignored", "rejected"}
 
 MD_COLUMNS = ["First Seen", "Company", "Title", "Location", "Lane", "Score", "Link", "Summary", "Status"]
 

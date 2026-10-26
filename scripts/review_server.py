@@ -21,7 +21,7 @@ from config import RESULTS, MD, HTML
 
 PORT = 8765
 IDLE_EXIT_SECONDS = 60 * 60
-ALLOWED_STATUSES = {"new", "shortlisted", "reviewed", "ignored", "applied"}
+ALLOWED_STATUSES = {"new", "shortlisted", "reviewed", "ignored", "applied", "rejected"}
 
 last_request = time.time()
 
