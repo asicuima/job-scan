@@ -18,7 +18,7 @@ from collections import defaultdict
 
 SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(0, SCRIPT_DIR)
-from config import RESULTS, STAFFING_COMPANIES
+from config import RESULTS, STAFFING_COMPANIES, load_preferences
 
 SENIOR_RE = re.compile(
     r"\b(senior|staff|lead\b|principal|head\b|manager|director)\b", re.IGNORECASE
@@ -78,6 +78,7 @@ def main(argv=None):
     args = p.parse_args(argv)
 
     staffing_re = load_staffing(args.staffing)
+    swedish_fluent = str(load_preferences().get("language", {}).get("swedish", "none")).lower() == "fluent"
 
     with open(args.results, encoding="utf-8") as f:
         jobs = [json.loads(l) for l in f if l.strip()]
@@ -123,7 +124,7 @@ def main(argv=None):
             warnings.append(f"WARN [ml_training_check] [{score}] {label} | JD mentions ML model training/development, verify ML calibration rule")
 
         # Rule 4: Swedish JD + high score without penalty
-        if score > 55 and has_swedish_markers(summary) and not SWEDISH_PENALTY_MENTIONED_RE.search(reason):
+        if not swedish_fluent and score > 55 and has_swedish_markers(summary) and not SWEDISH_PENALTY_MENTIONED_RE.search(reason):
             warnings.append(f"WARN [swedish_jd_penalty] [{score}] {label} | JD appears Swedish, reason doesn't mention language penalty")
 
         # Rule 5: Senior/lead title + high score (skip already staffing-gated)

@@ -115,7 +115,20 @@ def fetch(config, http_get=_http_get_json):
             offset += len(hits)
             if not hits or offset >= total:
                 break
-    return list(seen.values())
+    return filter_locations(list(seen.values()), config.get("location_filter"))
+
+
+def filter_locations(jobs, allowed):
+    """Optional post-filter on workplace municipality name.
+
+    `location_filter` in search_config.json is a list of municipality names
+    (e.g. ["Stockholm", "Solna"]). Easier to get right than taxonomy IDs.
+    Jobs with no municipality (often remote / multiple sites) are kept.
+    """
+    if not allowed:
+        return jobs
+    allowed_l = {a.strip().lower() for a in allowed}
+    return [j for j in jobs if not j.get("location") or j["location"].strip().lower() in allowed_l]
 
 
 def main(argv=None):

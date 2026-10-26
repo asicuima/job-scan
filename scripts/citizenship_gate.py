@@ -18,10 +18,12 @@ import argparse
 import json
 import os
 import re
+import shutil
 import sys
 
-SKILL_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-RESTRICTED_CONFIG = os.path.join(SKILL_DIR, "assets", "restricted_employers.json")
+SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
+sys.path.insert(0, SCRIPT_DIR)
+from config import RESTRICTED_EMPLOYERS as RESTRICTED_CONFIG, load_preferences
 
 SIGNAL_PATTERNS = [
     r"säkerhetspröv",
@@ -120,6 +122,14 @@ def main(argv=None):
     p.add_argument("--out", required=True)
     p.add_argument("--dry-run", action="store_true")
     args = p.parse_args(argv)
+
+    # Respect [eligibility]: nothing to gate for users who can hold these roles.
+    elig = load_preferences().get("eligibility", {})
+    if elig.get("exclude_security_cleared") is False or elig.get("citizenship") == "swedish_citizen":
+        print("citizenship_gate skipped: eligibility settings allow security-cleared roles", file=sys.stderr)
+        if not args.dry_run and args.inp != args.out:
+            shutil.copy2(args.inp, args.out)
+        return
 
     company_re, gate_score = load_restricted()
     rows, gated = [], []

@@ -35,14 +35,6 @@ TRACKER = os.path.join(OUTPUT_DIR, "applications-tracker.md")
 # Calibration feedback
 CALIBRATION = os.path.join(REPO_ROOT, "calibration.jsonl")
 
-# Temp files
-TMP_RAW = "/tmp/job-scan-raw.jsonl"
-TMP_TO_SCORE = "/tmp/job-scan-to-score.jsonl"
-TMP_FLAGGED = "/tmp/job-scan-flagged.jsonl"
-TMP_SCORED = "/tmp/job-scan-scored.jsonl"
-TMP_PENDING = "/tmp/job-scan-pending.jsonl"
-
-
 def ensure_output_dir():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 

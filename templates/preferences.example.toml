@@ -4,6 +4,8 @@
 [language]
 # Your Swedish proficiency: "fluent", "basic", or "none"
 # "none" or "basic" → jobs requiring fluent Swedish are filtered out (lang_gate)
+#                     and all-Swedish JDs get a ~10 point deduction
+# "fluent"          → lang_gate passes everything through, no deduction
 swedish = "none"
 
 [eligibility]
@@ -11,8 +13,10 @@ swedish = "none"
 #   "eu_citizen"       → no restrictions
 #   "non_eu_permit"    → has work permit, but security-cleared roles excluded
 #   "needs_permit"     → may need sponsorship
+#   "swedish_citizen"  → citizenship_gate is skipped
 citizenship = "non_eu_permit"
-# If true, security-cleared roles (säkerhetsprövning, etc.) are excluded
+# If true, security-cleared roles (säkerhetsprövning, etc.) are excluded.
+# If false, citizenship_gate is skipped.
 exclude_security_cleared = true
 
 [gates]
@@ -65,5 +69,5 @@ exclude_occupation_groups = [
 fetch_time = "07:00"
 # Whether to auto-score pending jobs after fetch (requires claude -p)
 auto_score = true
-# Max budget per auto-scoring run (USD)
+# Max budget per auto-scoring run (USD). Unscored jobs stay pending for the next run.
 max_budget_usd = 1.0

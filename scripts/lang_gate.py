@@ -12,8 +12,14 @@ negatives (left to LLM soft judgment) over false positives.
 """
 import argparse
 import json
+import os
 import re
+import shutil
 import sys
+
+SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
+sys.path.insert(0, SCRIPT_DIR)
+from config import load_preferences
 
 # High-confidence hard-requirement phrases (match = fluent Swedish required). Case-insensitive.
 HARD_PATTERNS = [
@@ -135,6 +141,14 @@ def main(argv=None):
     p.add_argument("--out", required=True, help="Output JSONL (gated in-place)")
     p.add_argument("--dry-run", action="store_true", help="Report matches only, don't write")
     args = p.parse_args(argv)
+
+    # Users with fluent Swedish should see these jobs; pass them through untouched.
+    swedish = str(load_preferences().get("language", {}).get("swedish", "none")).lower()
+    if swedish == "fluent":
+        print("lang_gate skipped: preferences language.swedish = fluent", file=sys.stderr)
+        if not args.dry_run and args.inp != args.out:
+            shutil.copy2(args.inp, args.out)
+        return
 
     rows, gated = [], []
     with open(args.inp, encoding="utf-8") as f:

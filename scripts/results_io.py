@@ -81,6 +81,9 @@ def merge(existing, scored, seen_links, today):
             cur["lane"] = job.get("lane", cur.get("lane", ""))
             cur["reason"] = job.get("reason", cur.get("reason", ""))
             cur["summary"] = job.get("summary", cur.get("summary", ""))
+            for key in ("capped_by", "llm_score"):
+                if key in job:
+                    cur[key] = job[key]
             cur["last_seen"] = today
         else:
             new_job = dict(job)
