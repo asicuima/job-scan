@@ -87,6 +87,7 @@ scripts/
   citizenship_gate.py         — Security clearance / citizenship gate
   pre_gate.py                 — Staffing company + occupation group gate
   profile_gap_gate.py         — Flags JDs needing stacks your profile lacks
+  title_gate.py               — Drops irrelevant titles before scoring (search_config title_filter)
   score_llm.py                — Tool-less LLM scorer with code-enforced caps
   audit_scores.py             — Post-scoring rule-violation audit
   render_html.py              — HTML dashboard renderer
@@ -114,7 +115,7 @@ calibration.jsonl             — Scoring feedback for continuous improvement
 
 Scoring follows a **gate → cap → tier** framework:
 
-1. **Deterministic gates** (pre-LLM, zero tokens): language requirements, security clearance, staffing agencies, occupation groups
+1. **Deterministic gates** (pre-LLM, zero tokens): language requirements, security clearance, staffing agencies, occupation groups, title relevance
 2. **LLM scoring** reads your `profile.md` and applies:
    - **Cap rules**: senior/lead roles cap at ≤50, missing core stack caps at ≤55, staffing agencies cap at ≤58
    - **Evidence-level verification**: "used it" ≠ "built/debugged it"
@@ -129,6 +130,10 @@ Job descriptions are untrusted web content. Unattended scoring therefore runs
 inside a clearly delimited untrusted block, accepts only a JSON array back and
 validates every field. The worst a malicious posting can do is skew its own
 score. Don't re-enable Bash/Write for the scorer.
+
+Budget: `claude -p` only reports a budget overrun after the request has been
+billed, so `score_llm.py` never starts a batch it can't afford in full (based on
+the cost of earlier batches) and stops after two failures in a row.
 
 Your `profile.md`, `preferences.toml` and results are gitignored — keep it that
 way if your fork is public.

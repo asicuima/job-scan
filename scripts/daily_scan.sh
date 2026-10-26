@@ -112,6 +112,7 @@ if [ "$(read_pref gates.staffing_gate true)" = "true" ]; then
     "$PYTHON" "$SCRIPTS_DIR/pre_gate.py" --in "$FLAGGED" --out "$FLAGGED" 2>>"$RUNLOG"
 fi
 "$PYTHON" "$SCRIPTS_DIR/profile_gap_gate.py" --in "$FLAGGED" --out "$FLAGGED" 2>>"$RUNLOG"
+"$PYTHON" "$SCRIPTS_DIR/title_gate.py" --in "$FLAGGED" --out "$FLAGGED" --config "$CONFIG" 2>>"$RUNLOG"
 
 # --- Phase 3: Merge + render ---
 "$PYTHON" "$SCRIPTS_DIR/results_io.py" --mode merge --scored "$FLAGGED" --seen "$RAW" \
@@ -119,6 +120,11 @@ fi
 "$PYTHON" "$SCRIPTS_DIR/render_html.py"
 
 NEW_COUNT="$(count_lines "$TOSCORE")"
+"$PYTHON" "$SCRIPTS_DIR/results_io.py" --mode pending --results "$RESULTS" --out "$PENDING" >/dev/null
+# Re-apply the title filter to the existing backlog (picks up title_filter edits).
+"$PYTHON" "$SCRIPTS_DIR/title_gate.py" --in "$PENDING" --out "$PENDING" --config "$CONFIG" 2>>"$RUNLOG"
+"$PYTHON" "$SCRIPTS_DIR/results_io.py" --mode merge --scored "$PENDING" \
+  --results "$RESULTS" --md "$MD" --today "$TODAY" >/dev/null
 "$PYTHON" "$SCRIPTS_DIR/results_io.py" --mode pending --results "$RESULTS" --out "$PENDING" >/dev/null
 PENDING_COUNT="$(count_lines "$PENDING")"
 log "fetched: new=$NEW_COUNT pending=$PENDING_COUNT"

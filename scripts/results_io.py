@@ -77,14 +77,17 @@ def merge(existing, scored, seen_links, today):
         link = job["link"]
         if link in merged:
             cur = merged[link]
-            cur["score"] = job.get("score", cur.get("score", 0))
+            cur["last_seen"] = today
+            if job.get("score") is None:
+                # Still unscored: don't turn a pending job into a 0-score one.
+                continue
+            cur["score"] = job["score"]
             cur["lane"] = job.get("lane", cur.get("lane", ""))
             cur["reason"] = job.get("reason", cur.get("reason", ""))
             cur["summary"] = job.get("summary", cur.get("summary", ""))
-            for key in ("capped_by", "llm_score"):
-                if key in job:
-                    cur[key] = job[key]
-            cur["last_seen"] = today
+            for key, val in job.items():
+                if key in ("capped_by", "llm_score") or key.endswith("_gate"):
+                    cur[key] = val
         else:
             new_job = dict(job)
             new_job["first_seen"] = today
