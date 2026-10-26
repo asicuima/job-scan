@@ -91,6 +91,7 @@ Check if `PLUGIN_ROOT/profile.md` exists. If not, enter setup:
    ```
    `occupation_field` is fixed to IT sector ID `apaJ_2ja_LuF` (JobTech taxonomy).
    A lane may set its own `"occupation_field"`; `null` searches all fields (useful for business/data/systems analyst roles, which JobTech often files outside IT).
+   `title_filter` (optional): list of case-insensitive regexes; unscored jobs whose title matches none are gated by `title_gate.py` (score 5, kept but hidden) so they are never sent to the LLM. Recommended whenever a lane searches all occupation fields.
    `location_filter` (optional) keeps only jobs whose workplace municipality name is in the list (jobs without a municipality are kept). Prefer it over `municipality_ids`, which need taxonomy concept IDs.
    Each lane corresponds to one of the user's career directions; keywords are used for JobTech API searches.
 
@@ -143,7 +144,7 @@ parse, you may WebFetch its `careers_url` and append jobs in the same format
   ```
   Then run the deterministic gates (each reads its toggle/settings from PREFS):
   ```bash
-  for g in lang_gate citizenship_gate pre_gate profile_gap_gate; do
+  for g in lang_gate citizenship_gate pre_gate profile_gap_gate title_gate; do
     python3 SCRIPTS/$g.py --in WORK/flagged.jsonl --out WORK/flagged.jsonl
   done
   ```

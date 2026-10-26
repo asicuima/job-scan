@@ -71,3 +71,6 @@ fetch_time = "07:00"
 auto_score = true
 # Max budget per auto-scoring run (USD). Unscored jobs stay pending for the next run.
 max_budget_usd = 1.0
+# Optional model for scoring (e.g. "sonnet", "haiku"). Unset = Claude Code's default.
+# Cheaper models are noticeably worse at applying the caps and spotting injected text.
+# model = "sonnet"

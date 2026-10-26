@@ -31,8 +31,10 @@ from config import (  # noqa: E402
 
 RULES = os.path.join(REPO_ROOT, "skills", "job-scan", "scoring_rules.md")
 
-BATCH_SIZE = 15
-MAX_JD_CHARS = 3500
+BATCH_SIZE = 20
+MAX_JD_CHARS = 3000
+FIRST_BATCH_ESTIMATE = 0.40   # USD; replaced by observed batch costs once one finishes
+MAX_CONSECUTIVE_FAILURES = 2
 MAX_CALIBRATION = 20
 MAX_REASON_CHARS = 400
 
@@ -160,7 +162,17 @@ def validate(item, batch, lanes):
     return idx, score, lane, reason
 
 
+class BudgetExhausted(RuntimeError):
+    pass
+
+
 def call_claude(prompt, claude_bin, budget, model=None):
+    """Run one tool-less scoring call. Returns (reply_text, cost_usd).
+
+    Raises RuntimeError with the cost attached (e.cost) so callers can count
+    spend even on failure: claude -p bills the full request before it reports
+    a budget error.
+    """
     cmd = [
         claude_bin, "-p",
         "--tools", "",
@@ -171,17 +183,28 @@ def call_claude(prompt, claude_bin, budget, model=None):
     ]
     if model:
         cmd += ["--model", model]
-    # Run from an empty-ish cwd so no project CLAUDE.md is pulled in.
+    # Run from the home dir so no project CLAUDE.md is pulled in.
     proc = subprocess.run(
         cmd, input=prompt, capture_output=True, text=True, timeout=900,
         cwd=os.path.expanduser("~"),
     )
-    if proc.returncode != 0:
-        raise RuntimeError(f"claude exited {proc.returncode}: {proc.stderr.strip()[:500]}")
-    envelope = json.loads(proc.stdout)
-    if envelope.get("is_error"):
-        raise RuntimeError(f"claude error: {str(envelope.get('result'))[:500]}")
-    return envelope.get("result", ""), float(envelope.get("total_cost_usd") or 0.0)
+    try:
+        envelope = json.loads(proc.stdout)
+    except (json.JSONDecodeError, TypeError):
+        envelope = None
+    if envelope is None:
+        detail = (proc.stderr or proc.stdout or "").strip()[:500]
+        err = RuntimeError(f"claude exited {proc.returncode}: {detail or 'no output'}")
+        err.cost = 0.0
+        raise err
+    cost = float(envelope.get("total_cost_usd") or 0.0)
+    if proc.returncode != 0 or envelope.get("is_error"):
+        msg = "; ".join(envelope.get("errors") or []) or str(envelope.get("result") or envelope.get("subtype"))
+        cls = BudgetExhausted if envelope.get("subtype") == "error_max_budget_usd" else RuntimeError
+        err = cls(f"claude error ({envelope.get('subtype', proc.returncode)}): {msg[:500]}")
+        err.cost = cost
+        raise err
+    return envelope.get("result", ""), cost
 
 
 def main(argv=None):
@@ -191,7 +214,7 @@ def main(argv=None):
     p.add_argument("--budget", type=float, help="Max USD for the whole run (default: preferences)")
     p.add_argument("--batch-size", type=int, default=BATCH_SIZE)
     p.add_argument("--claude-bin", default="claude")
-    p.add_argument("--model", help="Optional model override")
+    p.add_argument("--model", help="Model override (default: preferences schedule.model, else CLI default)")
     p.add_argument("--dry-run", action="store_true", help="Print the first prompt and exit")
     args = p.parse_args(argv)
 
@@ -200,6 +223,7 @@ def main(argv=None):
         prefs.get("schedule", {}).get("max_budget_usd", 1.0))
     staffing_cap = int(prefs.get("gates", {}).get("staffing_score_cap", 55))
     swedish_level = prefs.get("language", {}).get("swedish", "none")
+    model = args.model or prefs.get("schedule", {}).get("model") or None
     lanes = [lane["name"] for lane in load_search_config().get("lanes", [])]
 
     rules = read_text(RULES)
@@ -221,20 +245,36 @@ def main(argv=None):
         p.error("--out is required unless --dry-run")
 
     spent, scored, failed = 0.0, [], 0
+    batch_costs, consecutive_failures = [], 0
     for n, batch in enumerate(batches, 1):
         remaining = budget - spent
-        if remaining < 0.05:
-            print(f"budget reached (${spent:.2f}); {sum(map(len, batches[n - 1:]))} jobs left pending",
-                  file=sys.stderr)
+        # claude -p only checks the budget after a request has been paid for,
+        # so never start a batch we can't afford in full.
+        expected = max(batch_costs) * 1.2 if batch_costs else FIRST_BATCH_ESTIMATE
+        if remaining < expected:
+            left = sum(map(len, batches[n - 1:]))
+            print(f"budget reached (${spent:.2f} of ${budget:.2f}, next batch ~${expected:.2f}); "
+                  f"{left} jobs left pending", file=sys.stderr)
             break
         prompt = build_prompt(batch, rules, profile, calibration, lanes, swedish_level)
         try:
-            reply, cost = call_claude(prompt, args.claude_bin, remaining, args.model)
+            reply, cost = call_claude(prompt, args.claude_bin, remaining, model)
             spent += cost
+            batch_costs.append(cost)
             items = extract_array(reply)
+            consecutive_failures = 0
+        except BudgetExhausted as e:
+            spent += getattr(e, "cost", 0.0)
+            print(f"batch {n}/{len(batches)} stopped: {e}", file=sys.stderr)
+            break
         except (RuntimeError, ValueError, json.JSONDecodeError, subprocess.TimeoutExpired) as e:
+            spent += getattr(e, "cost", 0.0)
             failed += len(batch)
+            consecutive_failures += 1
             print(f"batch {n}/{len(batches)} failed: {e}", file=sys.stderr)
+            if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
+                print(f"stopping after {consecutive_failures} failures in a row", file=sys.stderr)
+                break
             continue
 
         seen = set()

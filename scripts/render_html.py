@@ -85,7 +85,7 @@ def risk_flags(r):
 
 
 def _is_gated(r):
-    return any(r.get(g) for g in ("lang_gate", "citizenship_gate", "staffing_gate", "occupation_gate"))
+    return any(r.get(g) for g in ("lang_gate", "citizenship_gate", "staffing_gate", "occupation_gate", "title_gate"))
 
 
 def render(src, out):
