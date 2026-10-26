@@ -117,18 +117,18 @@ def render(src, out):
         risk_html = f'<div class="risk">⚠ {esc(" · ".join(risks))}</div>' if risks else ""
         btns = "".join(
             f'<button class="act" onclick="mark(this,\'{s}\')"{" disabled" if status == s else ""}>{label}</button>'
-            for s, label in (("applied", "Applied"), ("rejected", "Rejected"), ("reviewed", "Reviewed"), ("ignored", "Ignore"))
+            for s, label in (("shortlisted", "Shortlist"), ("applied", "Applied"), ("rejected", "Rejected"), ("ignored", "Ignore"))
         )
         trs.append(f"""<tr data-link="{esc(link)}">
 <td class="num">{i}</td>
 <td class="score" style="color:{score_color(sc)}">{esc(sc)}</td>
 <td><span class="lane" style="background:{lc}1a;color:{lc}">{esc(lane)}</span></td>
 <td class="company">{esc(r.get('company',''))}</td>
-<td class="title">{esc(r.get('title',''))}</td>
+<td class="title">{f'<a href="{esc(href)}" target="_blank" rel="noopener">{esc(r.get("title",""))}</a>' if href else esc(r.get('title',''))}</td>
 <td class="loc">{esc(loc)}</td>
 <td class="reason">{risk_html}{esc(r.get('reason',''))}</td>
 <td><span class="status" style="color:{sfg};background:{sbg}">{esc(status)}</span>{applied}</td>
-<td>{f'<a href="{esc(href)}" target="_blank">↗</a>' if href else ''}</td>
+<td>{f'<a class="open" href="{esc(href)}" target="_blank" rel="noopener">Open ↗</a>' if href else ''}</td>
 <td class="acts">{btns}</td>
 </tr>""")
 
@@ -152,7 +152,10 @@ h1 {{ margin:0 0 6px; font-size:24px; }}
 .controls {{ margin-top:12px; display:flex; gap:8px; flex-wrap:wrap; }}
 .controls button {{ border:1px solid #cbd5e1; background:#fff; border-radius:6px; padding:5px 12px; font-size:13px; cursor:pointer; }}
 .controls button.active {{ background:#0f172a; color:#fff; border-color:#0f172a; }}
-.wrap {{ padding:16px 32px 60px; }}
+.wrap {{ padding:16px 32px 60px; overflow-x:auto; }}
+.title a {{ color:#1d4ed8; text-decoration:none; font-weight:600; }}
+.title a:hover {{ text-decoration:underline; }}
+a.open {{ white-space:nowrap; color:#1d4ed8; font-weight:600; text-decoration:none; }}
 table {{ border-collapse:collapse; width:100%; background:#fff; border-radius:10px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.06); }}
 th {{ background:#f1f5f9; text-align:left; padding:10px 12px; font-size:12px; color:#475569; text-transform:uppercase; letter-spacing:.03em; position:sticky; top:0; }}
 td {{ padding:10px 12px; border-top:1px solid #f1f5f9; font-size:14px; vertical-align:top; }}
@@ -189,7 +192,7 @@ a {{ color:#2563eb; text-decoration:none; font-size:16px; }}
 <div class="controls">
 <button data-f="all" class="active" onclick="flt(this)">All</button>
 <button data-f="shortlisted" onclick="flt(this)">Shortlisted</button>
-<button data-f="unprocessed" onclick="flt(this)">未处理</button>
+<button data-f="unprocessed" onclick="flt(this)">Unprocessed</button>
 <button data-f="hi" onclick="flt(this)">≥70 pts</button>
 </div>
 </header>

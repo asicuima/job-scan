@@ -15,7 +15,7 @@ SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(0, SCRIPT_DIR)
 from config import RESULTS, REPO_ROOT
 
-SKIP_STATUS = {"ignored", "applied"}
+SKIP_STATUS = {"ignored", "applied", "rejected"}
 DEFAULT_MIN_SCORE = 70
 
 
