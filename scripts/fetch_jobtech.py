@@ -5,6 +5,7 @@ Never search by English company name — Platsbanken uses Swedish legal names,
 so company-name queries miss results. Always query via occupation-field +
 bilingual keywords + municipality.
 """
+import http.client
 import json
 import sys
 import time
@@ -72,20 +73,27 @@ def normalize_hit(hit):
     }
 
 
-def _http_get_json(url, retries=3, backoff=2.0):
-    """GET JSON with exponential backoff retry on rate-limit/5xx/network errors."""
+# Transient failures worth retrying: dropped connections mid-body
+# (IncompleteRead), resets, timeouts, and truncated/garbled JSON.
+_TRANSIENT = (urllib.error.URLError, http.client.HTTPException, ConnectionError,
+              TimeoutError, json.JSONDecodeError, UnicodeDecodeError)
+
+
+def _http_get_json(url, retries=4, backoff=2.0):
+    """GET JSON with backoff retry on rate-limit/5xx and transient network errors."""
     for attempt in range(retries):
+        last = attempt == retries - 1
         try:
             req = urllib.request.Request(url, headers={"accept": "application/json"})
             with urllib.request.urlopen(req, timeout=30) as resp:
                 return json.loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as e:
-            if e.code in (429, 500, 502, 503, 504) and attempt < retries - 1:
+            if e.code in (429, 500, 502, 503, 504) and not last:
                 time.sleep(backoff * (attempt + 1))
                 continue
             raise
-        except urllib.error.URLError:
-            if attempt < retries - 1:
+        except _TRANSIENT:
+            if not last:
                 time.sleep(backoff * (attempt + 1))
                 continue
             raise
@@ -103,13 +111,19 @@ def fetch(config, http_get=_http_get_json):
     http_get is injectable for testing.
     """
     seen = {}
+    failed = []
     for params in build_queries(config):
         offset = 0
         while offset <= MAX_OFFSET:
             # municipality is a multi-value param; doseq expands it
             page_params = dict(params, offset=offset)
             url = API_URL + "?" + urllib.parse.urlencode(page_params, doseq=True)
-            data = http_get(url)
+            try:
+                data = http_get(url)
+            except Exception as e:  # one bad query must not sink the whole fetch
+                failed.append(params["q"])
+                print(f"query {params['q']!r} offset {offset} failed after retries: {e!r}", file=sys.stderr)
+                break
             hits = data.get("hits", [])
             for hit in hits:
                 job = normalize_hit(hit)
@@ -119,6 +133,7 @@ def fetch(config, http_get=_http_get_json):
             offset += len(hits)
             if not hits or offset >= total:
                 break
+    fetch.failed_queries = failed
     return filter_locations(list(seen.values()), config.get("location_filter"))
 
 
@@ -149,8 +164,10 @@ def main(argv=None):
     with open(args.out, "w", encoding="utf-8") as f:
         for job in jobs:
             f.write(json.dumps(job, ensure_ascii=False) + "\n")
-    print(f"fetched {len(jobs)} jobs -> {args.out}")
-    return 0
+    failed = getattr(fetch, "failed_queries", [])
+    print(f"fetched {len(jobs)} jobs -> {args.out}"
+          + (f" ({len(failed)} queries failed: {', '.join(failed)})" if failed else ""))
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

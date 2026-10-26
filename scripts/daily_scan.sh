@@ -84,7 +84,13 @@ PY
 log "START"
 
 # --- Phase 1: Fetch ---
-"$PYTHON" "$SCRIPTS_DIR/fetch_jobtech.py" --config "$CONFIG" --out "$RAW"
+# A network failure must not block scoring of the existing backlog:
+# keep whatever was fetched (possibly nothing) and carry on.
+if ! "$PYTHON" "$SCRIPTS_DIR/fetch_jobtech.py" --config "$CONFIG" --out "$RAW" 2>>"$RUNLOG"; then
+    [ -f "$RAW" ] || : > "$RAW"
+    log "JobTech fetch incomplete (see errors above); continuing with $(count_lines "$RAW") jobs"
+    notify "job-scan: JobTech fetch incomplete — check $RUNLOG"
+fi
 
 if [ -f "$COMPANIES" ]; then
     if "$PYTHON" "$SCRIPTS_DIR/fetch_careers.py" --config "$COMPANIES" --out "$CAREERS" 2>>"$RUNLOG"; then
